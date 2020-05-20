@@ -42,15 +42,17 @@ float t[3];
 Thread mqtt_thread(osPriorityHigh);
 Thread acc_thread(osPriorityNormal);
 EventQueue mqtt_queue;
-EventQueue acc_queue(32 * EVENTS_EVENT_SIZE);
+//EventQueue acc_queue(32 * EVENTS_EVENT_SIZE);
 
 void FXOS8700CQ_readRegs(int addr, uint8_t * data, int len);
 void FXOS8700CQ_writeRegs(uint8_t * data, int len);
+void acc(void);
 
 void messageArrived(MQTT::MessageData& md) {
       MQTT::Message &message = md.message;
       char msg[300];
-      sprintf(msg, "Message arrived: QoS%d, retained %d, dup %d, packetID %d\r\n", message.qos, message.retained, message.dup, message.id);
+      acc();
+      sprintf(msg, "Message arrived: QoS%d, retained %d, dup %d, packetID %d\r\n x = %f y = %f z = %f\r\n", message.qos, message.retained, message.dup, message.id, t[0], t[1], t[2]);
       printf(msg);
       wait_ms(1000);
       char payload[300];
@@ -94,7 +96,7 @@ void acc() {
    // Get the slave address
    FXOS8700CQ_readRegs(FXOS8700Q_WHOAMI, &who_am_i, 1);
 
-   while (true) {
+   //while (true) {
 
       FXOS8700CQ_readRegs(FXOS8700Q_OUT_X_MSB, res, 6);
 
@@ -112,7 +114,7 @@ void acc() {
       if (acc16 > UINT14_MAX/2)
          acc16 -= UINT14_MAX;
       t[2] = ((float)acc16) / 4096.0f;
-   }
+   //}
 }
 
 int main() {
@@ -137,7 +139,7 @@ int main() {
       MQTT::Client<MQTTNetwork, Countdown> client(mqttNetwork);
 
       //TODO: revise host to your ip
-      const char* host = "127.0.0.1";
+      const char* host = "172.20.10.2";
       printf("Connecting to TCP network...\r\n");
       int rc = mqttNetwork.connect(host, 1883);
       if (rc != 0) {
@@ -158,7 +160,7 @@ int main() {
       }
 
       mqtt_thread.start(callback(&mqtt_queue, &EventQueue::dispatch_forever));
-     // acc_thread.start(callback(&acc_queue, &EventQueue::dispatch_forever));
+      //acc_thread.start(callback(&acc_queue, &EventQueue::dispatch_forever));
       btn2.rise(mqtt_queue.event(&publish_message, &client));
       btn3.rise(&close_mqtt);
 
@@ -170,6 +172,7 @@ int main() {
 
       while (1) {
             if (closed) break;
+            acc();
             wait(0.5);
       }
 
